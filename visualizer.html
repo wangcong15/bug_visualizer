@@ -1,0 +1,137 @@
+<html>
+<head>
+	<title>Bug Visualizer</title>
+	<meta http-equiv="Content-Type" content="text/html;" charset="UTF-8"/>
+	<link rel="stylesheet" href="lib/bootstrap.min.css">
+	<link rel="stylesheet" href="lib/visualizer.css">
+	<link rel="stylesheet" href="lib/zTreeStyle.css">
+</head>
+<style type="text/css">
+	@font-face {  
+	    font-family: pictos;  
+	    src:url('./lib/CenturyGothic.TTF');
+	} 
+	.sort-selected{
+		color:red;
+	}
+</style>
+<body style="font-family:pictos">
+	<script src="lib/angular.min.js"></script>
+	<script src="lib/ace/ace.js"></script>
+	<script src="lib/jquery-1.12.1.min.js"></script>
+	<script src="lib/jquery.ztree.core.min.js"></script>
+	<script src="lib/jquery.ztree.exhide.min.js"></script>
+	<script src="lib/bootstrap.min.js"></script>
+
+	<!-- Script: Angular-->
+	<script src="visualizer.js"></script>
+
+	<div ng-app="myApp" ng-controller="myCtrl">
+	    <div id="content">
+	    	<!-- setting modal -->
+	    	<div class="setting-modal-bg modal-unity" style="display:none" ng-click="closeSetting()"></div>
+	    	<div class="setting-modal modal-unity" style="display:none">
+	    		<h3 class="text-center">System Setting</h3>
+	    		<div class="row modal-contents">
+	    			<div class="col-md-3 text-center">
+	    				<h5>FONT SIZE</h5>
+	    			</div>
+	    			<div class="col-md-9">
+	    				<button class="btn btn-default btn-70" ng-repeat="fontsize in fontsizes" ng-class="{'btn-primary': fontsize == currFs}" ng-click="selectFs($index)">{{ fontsize }}</button>
+	    			</div>
+	    			
+	    		</div>
+	    		<div class="row modal-contents">
+	    			<div class="col-md-3 text-center">
+	    				<h5>THEME</h5>
+	    			</div>
+	    			<div class="col-md-9">
+	    				<select class="form-control" ng-change="selectTheme()" ng-model="currTheme">
+	    					<option ng-repeat="theme in themes" value="{{ theme }}">{{ theme }}</option>
+	    				</select>
+	    			</div>
+	    		</div>
+	    		<div class="text-center modal-footer">
+	    			<button class="btn btn-default btn-100" ng-click="closeSetting()">NO</button>
+	    			<button class="btn btn-primary btn-100" ng-click="saveSetting()">YES</button>
+	    		</div>
+	    	</div>
+	    	<!-- main contents -->
+			<div class="col-md-2" id="left-panel">
+				<div class="left-panel-content">
+					<h4>Bug Commit History</h4>
+					<select class="form-control" ng-change="changeHL(x)" ng-model="x">
+						<option ng-repeat="hl in history_list" value="{{$index}}">{{ hl }}</option>
+					</select>
+				</div>
+				<div class="left-panel-content">
+					<h4>File Explorer</h4>
+					<input type="checkbox" ng-model="showAllFiles" ng-change="changeHL(hlIndex)"> view non-source files
+					<div id="tree" class="list-group-large ztree">
+					</div>
+				</div>
+			</div>
+			<div class="col-md-6" id="middle-panel">
+				<div>
+					<h4>
+						<img src="lib/setting.png" class="head-icon" ng-click="openSetting()">
+						Current Code 
+						<img ng-src="{{fullscreenIcon}}" class="head-icon" ng-click="toggleFullScreen()">
+					</h4>
+					<ul id="myTab" class="nav nav-tabs" style="margin-top:-10px" ng-show="openFilenames.length>0">
+						<li ng-repeat="filename in openFilenames" ng-class="{'active': currTab==filename}">
+							<a ng-click="changeTab(filename)" style="cursor:hand">
+								<img src="lib/close.png" style="height:10px" ng-click="closeTab(filename)">
+								{{ codeDic[filename][0] }}
+							</a>
+						</li>
+					</ul>
+					<div id="editor"></div>
+				</div>
+			</div>
+			<div class="col-md-4" id="right-panel">
+				<div>
+					<h4>Bug List</h4>
+					<div class="list-group">
+						<input type="text" class="form-control" ng-model="searchword" placeholder="Search">
+						<table class="table table-striped" style="font-size:12px">
+						  <thead>
+						    <tr>
+						      <th class="bug-item" ng-click="changeOrderCond('cweid')" ng-class="{'sort-selected': orderCondSelect=='cweid'}">ID</th>
+						      <th class="bug-item" ng-click="changeOrderCond('cweid')" ng-class="{'sort-selected': orderCondSelect=='cweid'}">CWE</th>
+						      <th class="bug-item" ng-click="changeOrderCond('category')" ng-class="{'sort-selected': orderCondSelect=='category'}">Type</th>
+						      <th class="bug-item" ng-click="changeOrderCond('weakness')" ng-class="{'sort-selected': orderCondSelect=='weakness'}">Weakness</th>
+						      <th class="bug-item" ng-click="changeOrderCond('severity')" ng-class="{'sort-selected': orderCondSelect=='severity'}">Severity</th>
+						      <th class="bug-item" ng-click="changeOrderCond('confidence')" ng-class="{'sort-selected': orderCondSelect=='confidence'}">Confidence</th>
+						    </tr>
+						  </thead>
+						  <tbody>
+						    <tr ng-repeat="bug in bugs | orderBy:orderCond | filter:searchword" ng-click="bugClick(bug)" ng-class="{ 'btn-primary': bug.isSelected }" class="bug-item" title="{{bug.desc}}">
+						      <td>{{ bug.temp_id }}</td>
+						      <td><span ng-repeat="cweid in bug.cweid" ng-click="cweclick(cweid, bug.desc)">{{cweid}}{{$last ? '' : ' / '}}</span></td>
+						      <td>{{ bug.category }}</td>
+						      <td>{{ bug.weakness }}</td>
+						      <td>{{ bug.severity }}</td>
+						      <td>{{ bug.confidence }}</td>
+						    </tr>
+						  </tbody>
+						</table>
+					</div>
+				</div>
+				<div id="bug_desc">
+					<div ng-show="showCWE">{{cwe_desc[cwe_id]}}[<a target="_blank" href="http://cwe.mitre.org/data/definitions/{{cwe_id}}.html">CWE.{{cwe_id}}</a>]</div>
+				</div>
+				<div>
+					<h4>Counter Trace</h4>
+					<div class="list-group">
+						<button class="list-group-item btn" ng-repeat="trace in traces" ng-click="traceClick($index)" ng-class="{ 'btn-primary': $index == hlIndex4 }" style="font-size:12px;text-align:left!important">
+							{{ trace.file }}({{ trace.line }}): {{ctCode[$index]}}
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</body>
+</html>
